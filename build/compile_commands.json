@@ -1,0 +1,8 @@
+[
+{
+  "directory": "C:/Users/ROD/Documents/HAN/Period 1/EVD1/Exercises/Week5/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -DPy_NO_LINK_LIB @CMakeFiles/Week5.dir/includes_CXX.rsp -g -o CMakeFiles\\Week5.dir\\main.cpp.obj -c \"C:\\Users\\ROD\\Documents\\HAN\\Period 1\\EVD1\\Exercises\\Week5\\main.cpp\"",
+  "file": "C:/Users/ROD/Documents/HAN/Period 1/EVD1/Exercises/Week5/main.cpp",
+  "output": "CMakeFiles/Week5.dir/main.cpp.obj"
+}
+]
