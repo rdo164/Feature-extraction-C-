@@ -8,7 +8,11 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
-add_executable(Week5 main.cpp)
+file(GLOB all_SRCS
+        "${PROJECT_SOURCE_DIR}/*.hpp"
+)
+
+add_executable(Week5 ${all_SRCS}  main.cpp)
 
 target_link_libraries(Week5 ${OpenCV_LIBS} Python3::Python)
 
