@@ -8,7 +8,6 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include "hue_histogram.hpp"
 
 using namespace cv;
 using namespace std;
