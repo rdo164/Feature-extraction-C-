@@ -22,8 +22,6 @@ inline cv::Mat createHueHistogram(const cv::Mat& bgr,
                                   int center_hue   = -1,
                                   const cv::Mat& roiMask = cv::Mat())
 {
-    CV_Assert(!bgr.empty() && bgr.type() == CV_8UC3);
-
     // 1) BGR -> HSV, split
     cv::Mat hsv; cv::cvtColor(bgr, hsv, cv::COLOR_BGR2HSV);
     std::vector<cv::Mat> ch; cv::split(hsv, ch);
@@ -121,7 +119,7 @@ static void enhance_image(const Mat& src_bgr, HSVData& hsvd)
 // 3) SEGMENTATION  (Otsu on V_smooth + filter on  S + morphology + foreground)
 static void segment_image(const Mat& src_bgr, const HSVData& hsvd,
                           Mat& objMask, Mat& foreground)
-{
+{    
     // 3.1) Otsu threshold on V channel (for bright objects)
     threshold(hsvd.V_smooth, objMask, 0, 255, THRESH_BINARY | THRESH_OTSU); 
 
@@ -129,6 +127,11 @@ static void segment_image(const Mat& src_bgr, const HSVData& hsvd,
     Mat satKeep;
     inRange(hsvd.S, Scalar(20), Scalar(255), satKeep); // keep pixels with S > 20 
     bitwise_and(objMask, satKeep, objMask); // combine masks
+
+    // 3.25) Keep only pixels with medium/high value
+    Mat valKeep;
+    inRange(hsvd.V_smooth, Scalar(120), Scalar(255), valKeep); // keep pixels with V > 120
+    bitwise_and(objMask, valKeep, objMask); // combine masks
 
     // 3.3) Morphological cleaning
     Mat k_open  = getStructuringElement(MORPH_ELLIPSE, Size(9,9));// OPEN: removes small white noise
@@ -182,32 +185,34 @@ string getColorNameFromHSV(const Scalar& hsv) {
 // 4) FEATURE EXTRACTION  (Contours + HSV mean
 static Mat extract_features(const Mat& src, const Mat& objMask, const Mat& result)
 {
-    vector<vector<Point>> contours;
+    // vector<vector<Point>> contours;
     vector<Vec4i> hierarchy;
 
     // findContours modifies the image; so I use clone
-    findContours(objMask.clone(), contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+    // findContours(objMask.clone(), contours, hierarchy, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
 
-    cout << "Number of contours (all): " << contours.size() << endl;
+    // cout << "Number of contours (all): " << contours.size() << endl;
 
-    int piezas = 0; // counter for large objects
+    // int piezas = 0; // counter for large objects
 
-    Mat obj_pixels;
-    Mat mask = Mat::zeros(src.size(), CV_8UC1);
-    for (size_t i = 0; i < contours.size(); ++i) 
-    {
-        double area = contourArea(contours[i]);
-        if (area > 20000) { // if not it does not recognize properly
-            piezas++;
+    // Mat obj_pixels;
+    // Mat mask = Mat::zeros(src.size(), CV_8UC1);
+    // for (size_t i = 0; i < contours.size(); ++i) 
+    // {
+    //     double area = contourArea(contours[i]);
+    //     if (area > 20000) { // if not it does not recognize properly
+    //         piezas++;
 
-            // mask of object i
-            drawContours(mask, contours, (int)i, Scalar(255), FILLED);
+    //         // mask of object i
+    //         drawContours(mask, contours, (int)i, Scalar(255), FILLED);
 
-            // cropped colored object
-            result.copyTo(obj_pixels, mask);
-        }
-    }
-    //create_window("masked", obj_pixels, 500, 300, 700 ,0);
+    //             create_window("masked", mask, 500, 300, 700 ,0);
+
+    //         // cropped colored object
+    //         result.copyTo(obj_pixels, mask);
+    //     }
+    // }
+    // if (obj_pixels.empty()) return obj_pixels;
     // Draw all contours on a copy of the original image
 
    
@@ -232,8 +237,8 @@ static Mat extract_features(const Mat& src, const Mat& objMask, const Mat& resul
     // }
 
     //     // 1) Vector hue-frecuencia (180 valores 0..1)
-    Mat hist = createHueHistogram(obj_pixels);
-    std::cout << hist;
+    Mat hist = createHueHistogram(result);
+    //std::cout << hist;
 
     
         // 2) Imagen 2D del histograma
@@ -250,29 +255,29 @@ bool to_push(const config & cfg, Mat & hist) {
     int upper = cfg.desiredHue + cfg.window;
     int lower = cfg.desiredHue - cfg.window;
 
-    std::cout << "\n\nupper: " << upper << " lower: " << lower;
+    // std::cout << "\n\nupper: " << upper << " lower: " << lower;
 
     for(int i = 0; i < hist.rows; i++)
     {
         total += hist.at<float>(i,0);
         if (i >= lower && i <= upper) {
-            std::cout << "\nAdding: " << hist.at<float>(i,0) << " At: " << i;
+            // std::cout << "\nAdding: " << hist.at<float>(i,0) << " At: " << i;
             totalDesired += hist.at<float>(i,0);
         }
 
         else if (lower < 0 && i >= (hist.rows + lower - 1)) {
-            std::cout << "\nAdding: " << hist.at<float>(i,0) << " At: " << i;
+            // std::cout << "\nAdding: " << hist.at<float>(i,0) << " At: " << i;
             totalDesired += hist.at<float>(i,0);
         }
 
         else if (upper >= hist.rows && i <= (upper - hist.rows - 1)) {
-            std::cout << "\nAdding: " << hist.at<float>(i,0) << " At: " << i;
+            // std::cout << "\nAdding: " << hist.at<float>(i,0) << " At: " << i;
             totalDesired += hist.at<float>(i,0);
         }
     }
 
-    std::cout << "\n\nTotal: " << total;
-    std::cout << "\n\nTotalDesired: " << totalDesired;
+    // std::cout << "\n\nTotal: " << total;
+    // std::cout << "\n\nTotalDesired: " << totalDesired;
 
     if (cfg.exclude) return total - totalDesired > total * (1-cfg.sensitivity);
     else return totalDesired > total * (1-cfg.sensitivity);
@@ -285,19 +290,21 @@ bool run_pipeline(const config & cfg)
 
     // (2) Enhancement
     HSVData hsvd;
-    enhance_image(cfg.img, hsvd);  
+    enhance_image(cfg.img, hsvd);
 
     // (3) Segmentation
     Mat objMask, foreground;
     segment_image(cfg.img, hsvd, objMask, foreground);
 
     // Visualization of intermediate results
-    //create_window("Original",   cfg.img,       500, 300,   0,   0);
-    //create_window("Mask",       objMask,   500, 300, 100,   0);
-    //create_window("Foreground", foreground,500, 300, 300,   0);
+    // create_window("Original",   cfg.img,       500, 300,   0,   0);
+    // create_window("Mask",       objMask,   500, 300, 100,   0);
+    create_window("Foreground", foreground,500, 300, 300,   0);
 
     // (4) Feature Extraction  
-    Mat hist = extract_features(cfg.img, objMask, foreground);
+    Mat hist = createHueHistogram(foreground);
+    //std::cout << hist;
+    if(hist.empty()) return false;
 
     return to_push(cfg, hist);
 }
